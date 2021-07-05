@@ -25,7 +25,8 @@ source-repository head
 
 library
   exposed-modules:
-      Lib
+      PSO
+      ToyProblems
   other-modules:
       Paths_H_PSO
   hs-source-dirs:

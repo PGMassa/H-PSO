@@ -1,20 +1,5 @@
--- TODO: 
---       Implement a default version of updateCoeffs
---       Implement a real genRandomWeights, using a seed
-
---       Refactoring and commenting
-
---       Test every function, one at a time
---       No, no, no, I'm serious, go back there and don't come back until it's all tested
---       DON'T TRY TO FOOL ME!!! I AM YOU, I KNOW YOU DIND'T TEST SHIT!!! GO BACK THERE AND TEST IT!!!
---       Ok, good, it wasn't that hard was it :)
-
---       Test it a one or two toy problems
---       Implement some sort of visualization and a way to store the results
---       Try a harder problem
-
-module Lib
-    ( someFunc
+module PSO
+    ( run, FitnessFunction (FitnessFunction), Population, Particle
     ) where
 
 import Data.List (transpose)
@@ -23,7 +8,7 @@ import System.Random
 type Position       = [Double]
 type Velocity       = [Double]
 type ParticleState  = (Position, Velocity)
-type Coefficients   = (Double, Double) -- ^ c1 and c2
+type Coefficients   = (Double, Double, Double) -- ^ c1, c2 and step
 type RndWeights     = (Double, Double, Double) -- ^ w, r1 and r2
 type Range          = (Double, Double) -- ^ lower and upper boundary for parameters of the solution 
 
@@ -56,7 +41,7 @@ data Population = Population
         _g_best_fit :: Double, -- ^ global best fitness
         _g_best_pos :: Position, -- ^ position where this population found its best fit
 
-        _coeffs     :: Coefficients -- ^ c1 and c2 coefficients
+        _coeffs     :: Coefficients -- ^ c1, c2 and step
     } 
 
 instance Show Population where
@@ -69,10 +54,14 @@ instance Show Population where
             particlesList = map show (_particles pop)
             particlesStr  = foldr (++) [] particlesList
 
--- | RESOLVER ESSA FUNCAO DEPOIS
 -- | Generates w, r1 and r2
-genRandomWeights :: RndWeights
-genRandomWeights = (1.0, 1.0, 1.0)
+genRandomWeights :: Int -> RndWeights
+genRandomWeights seed = (w, r1, r2)
+    where
+        w       = weights !! 0
+        r1      = 2 * weights !! 0
+        r2      = 2 * weights !! 0
+        weights = randomList 3 seed
 
 -- | Generates a list of random values between [0..1]
 randomList :: Int -> Int -> [Double]
@@ -101,9 +90,9 @@ genRandomSolution solSize (lowerB, upperB) (FitnessFunction fit) seed =
         where
             generator    = genRandomVector solSize
 
-            maxVel       = (upperB - lowerB) / 10
+            maxVel       = (upperB - lowerB) / 10.0
             initPosition = generator (lowerB, upperB) (seed * solSize)
-            initVelocity = generator (0, maxVel) (round $ sum initPosition)
+            initVelocity = generator (-maxVel, maxVel) (round $ sum initPosition)
 
             initBestFit  = fit initPosition
             initBestPos  = initPosition
@@ -125,15 +114,16 @@ genRandomPopulation popSize solSize solRange coeffs fit seed =
 
             (initBestFit, initBestPos) = bestFit initParticles
 
--- | EVENTUALMENTE PERMITIR QUE O USUARIO DEFINA ISSO
--- | Receives the coeffs in the current iteration and returns the coeffs for the next iteration
+-- | Updates de c1 and c2 for the next iteration
 updateCoeffs :: Coefficients -> Coefficients
-updateCoeffs a = (0.5::Double, 0.5::Double)
-
+updateCoeffs (c1, c2, step) = (nC1, nC2, step)
+    where 
+        nC1 = c1 - step
+        nC2 = 1.0 - nC1
 
 -- | Computes the new position and velocity of a particle
 updateParticle :: ParticleState -> Position -> Position -> Range -> Coefficients -> RndWeights -> ParticleState
-updateParticle (currentPos, currentVel) cognitivePos socialPos (lowerB, upperB) (c1, c2) (w, r1, r2) = 
+updateParticle (currentPos, currentVel) cognitivePos socialPos (lowerB, upperB) (c1, c2, step) (w, r1, r2) = 
     (newPos, newVel)
     where
         inertia   = map (* w) (currentVel)
@@ -145,15 +135,15 @@ updateParticle (currentPos, currentVel) cognitivePos socialPos (lowerB, upperB) 
         newPos       = map clampPos $ unboundedPos
         newVel       = map clampVel $ unboundedVel
 
-        maxVel                   = (upperB - lowerB) / 10
+        maxVel                   = (upperB - lowerB) / 10.0
         clamp (lower, upper) pos = min upper $ max lower pos
         clampPos                 = clamp (lowerB, upperB) 
-        clampVel                 = clamp (0, maxVel)
+        clampVel                 = clamp (-maxVel, maxVel)
 
 
 -- | Behavior of a single particle during an iterations 
-iterateParticle :: Coefficients -> FitnessFunction -> Position -> Range -> Particle -> Particle
-iterateParticle coeffs (FitnessFunction fit) globalBest solRange particle = 
+iterateParticle :: Coefficients -> FitnessFunction -> Position -> Range -> Int -> Particle -> Particle
+iterateParticle coeffs (FitnessFunction fit) globalBest solRange seed particle = 
     Particle 
         { _position   = newPos
         , _velocity   = newVel
@@ -161,7 +151,7 @@ iterateParticle coeffs (FitnessFunction fit) globalBest solRange particle =
         , _p_best_pos = newBestPos
         }
         where
-            rndWeights = genRandomWeights
+            rndWeights = genRandomWeights seed
             current_state    = ((_position particle), (_velocity particle))
             (newPos, newVel) = updateParticle current_state (_p_best_pos particle) globalBest solRange coeffs rndWeights
 
@@ -178,8 +168,8 @@ bestFit population = maximum fitList
         fitList = [(_p_best_fit particle, _p_best_pos particle) | particle <- population]
 
 -- | Behavior of the whole population during a single iteration
-iteratePopulation :: FitnessFunction -> Range -> Population -> Population
-iteratePopulation fit solRange currentPop = 
+iteratePopulation :: FitnessFunction -> Range -> Int -> Population -> Population
+iteratePopulation fit solRange seed currentPop = 
     Population 
         { _particles  = newPop
         , _g_best_fit = newBestFit
@@ -187,7 +177,7 @@ iteratePopulation fit solRange currentPop =
         , _coeffs     = newCoeffs   
         }
         where
-            iterator   = iterateParticle (_coeffs currentPop) fit (_g_best_pos currentPop) solRange
+            iterator   = iterateParticle (_coeffs currentPop) fit (_g_best_pos currentPop) solRange seed
             newPop     = map (iterator) (_particles currentPop)
 
             newCoeffs  = updateCoeffs (_coeffs currentPop)
@@ -201,27 +191,10 @@ iteratePopulation fit solRange currentPop =
 run :: FitnessFunction -> Int -> Int -> Range -> Int -> Int -> Population
 run fit popSize solSize solRange iterations seed = iterate iterator initPopulation !! iterations
     where
-        initCoeffs     = (1.0::Double, 0.0::Double)
+        c1             = 1.0 :: Double
+        c2             = 1.0 - c1
+        step           = (1.0 - c2)/(fromIntegral iterations)
+        initCoeffs     = (c1, c2, step)
+
         initPopulation = genRandomPopulation popSize solSize solRange initCoeffs fit seed
-        iterator       = iteratePopulation fit solRange
-
--- | Just a stupid function for debugging purposes
-test :: Population
-test = b
-    where
-        fit x = 1.0 / (25.0 - (foldr (+) 0 x))
-        a = FitnessFunction fit
-        b = run a 50 5 (1.0, 5.0) 100 655454345
-
-
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
-
-
-
-
-
-
--- PARA USAR NUMEROS ALEATORIOS SIGA AS SEGUINTES INSTRUÇÕES:
--- g <- getStdGen   (gera o gerador de numerso aleatorios)
--- (i, g') = randomR (0, 1.0 :: Double) g (gera numero aleatorio entre 0 e 1 e um novo gerador)
+        iterator       = iteratePopulation fit solRange seed
