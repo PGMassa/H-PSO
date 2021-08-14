@@ -33,6 +33,27 @@ testTSP = result
 
         fit    = tsp graph simple
 
+-- | Tests the Knapsack Problem
+testKnapsack = result
+    where 
+        result = run fit popSize solSize solRange iterations seed
+
+        popSize    = 50
+        solSize    = 2
+        solRange   = (0, fromIntegral $ (length itemList - 1))
+        iterations = 50
+        seed       = 134
+
+        itemList  = [((5::Double) , (100::Double))
+                    ,(10, 100)
+                    ,(10, 20)
+                    ,(5 , 20)
+                    ,(10, 10)
+                    ,(5 , 10)] 
+        maxWeight = 15.0 :: Double
+
+        fit      = knapsack itemList maxWeight
 
 main :: IO ()
-main = putStrLn $ show testTSP
+main = --putStrLn $ show testTSP
+       putStrLn $ show testKnapsack
