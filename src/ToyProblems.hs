@@ -65,16 +65,3 @@ knapsack items maxWeight = FitnessFunction knapsackValue
 
 
 
-
-
-
-
-{-
-
--- | Just a stupid function for debugging purposes
-test :: Population
-test = b
-    where
-        fit x = 1.0 / (25.0 - (foldr (+) 0 x))
-        a = PSO.FitnessFunction fit
-        b = run a 50 5 (1.0, 5.0) 100 655454345-}

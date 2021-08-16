@@ -1,12 +1,3 @@
--- TODO: 
---       Test the TSP
---       Implemente one or two more toy problems
---       Refactore and comment the PSO module
---       Refactore and comment the ToyProblems module
---       Refactore and comment the Main module
---       Implement some sort of visualization and a way to store the results
---       Try a harder problem
-
 module Main where
 
 import PSO
@@ -18,18 +9,20 @@ testTSP = result
     where
         result = run fit popSize solSize solRange iterations seed
 
-        popSize    = 50
+        popSize    = 100
         solSize    = fromIntegral $ length $ graph !! 0
         solRange   = (0, fromIntegral $ (length graph - 1))
-        iterations = 50
+        iterations = 100
         seed       = 134
 
-        graph  = [[0,2,1],
-                  [2,0,2],
-                  [2,1,0]]
+        graph  = [[0,5,10,15,20],
+                  [5,0,5,10,15],
+                  [10,5,0,5,15],
+                  [15,10,5,0,5],
+                  [20,15,15,5,0]]
 
-        --simple = True -- Any and all repetition receives equal punishment
-        simple = False -- The more repetition, the bigger the punishement
+        simple = True -- Any and all repetition receives equal punishment
+        --simple = False -- The more repetition, the bigger the punishement
 
         fit    = tsp graph simple
 
@@ -38,22 +31,22 @@ testKnapsack = result
     where 
         result = run fit popSize solSize solRange iterations seed
 
-        popSize    = 50
-        solSize    = 2
+        popSize    = 100
+        solSize    = 3
         solRange   = (0, fromIntegral $ (length itemList - 1))
-        iterations = 50
+        iterations = 100
         seed       = 134
 
-        itemList  = [((5::Double) , (100::Double))
-                    ,(10, 100)
-                    ,(10, 20)
-                    ,(5 , 20)
+        itemList  = [((7::Double) , (10::Double))
                     ,(10, 10)
-                    ,(5 , 10)] 
-        maxWeight = 15.0 :: Double
+                    ,(10.5, 15)
+                    ,(5 , 10)
+                    ,(10, 10)
+                    ,(5.5 , 12.5)]
+        maxWeight = 25.0 :: Double
 
-        fit      = knapsack itemList maxWeight
+        fit       = knapsack itemList maxWeight
 
 main :: IO ()
-main = --putStrLn $ show testTSP
-       putStrLn $ show testKnapsack
+main = putStrLn $ show testTSP
+       --putStrLn $ show testKnapsack
